@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: #08080c;
+  font-family: 'Tajawal', sans-serif;
+  color: #f6f1e7;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+input {
+  font-family: 'Tajawal', sans-serif;
+}
+
+::placeholder {
+  color: #7c7666;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 200, 75, 0.25);
+  border-radius: 6px;
+}
+
+/* ---- animation keyframes (ported from Sifr Game design) ---- */
+@keyframes livePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes flareIn {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes glowBreath {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 24px rgba(245, 200, 75, 0.45));
+  }
+  50% {
+    filter: drop-shadow(0 0 46px rgba(245, 200, 75, 0.85));
+  }
+}
+@keyframes confFall {
+  0% {
+    transform: translateY(-30px) rotate(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(620px) rotate(540deg);
+    opacity: 0;
+  }
+}
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-10px);
+  }
+  40% {
+    transform: translateX(9px);
+  }
+  60% {
+    transform: translateX(-6px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+@keyframes spinPop {
+  0% {
+    transform: translateY(14px) scale(0.92);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+@keyframes lockBoom {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes elimRise {
+  0% {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
