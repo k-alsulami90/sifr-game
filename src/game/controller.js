@@ -43,9 +43,7 @@ export default class GameController {
       status: 'setup', // setup | playing | game_over
       numTeams,
       teams: this.makeTeams(numTeams, prevTeams),
-      safePicks: Array.from({ length: numTeams }, (_, i) =>
-        Math.min(i, this.bank.length - 1)
-      ),
+      safePicks: this.defaultPicks(numTeams),
       sessionCats: [],
       eliminated: [],
       currentRound: 1,
@@ -78,6 +76,18 @@ export default class GameController {
       name: (prev[i] && prev[i].name) || DEFAULT_TEAM_NAMES[i] || 'فريق ' + (i + 1),
       dot: teamDot(i),
     }));
+  }
+
+  // category indices that currently hold at least one question
+  nonEmptyCatIndices() {
+    return this.bank.map((_, i) => i).filter((i) => (this.bank[i].questions || []).length > 0);
+  }
+
+  // default guaranteed-category picks land only on categories that have questions
+  defaultPicks(n) {
+    const ne = this.nonEmptyCatIndices();
+    const base = ne.length ? ne : [0];
+    return Array.from({ length: n }, (_, i) => base[i % base.length]);
   }
 
   destroy() {
@@ -141,9 +151,10 @@ export default class GameController {
   rebuildTeams = (n) => {
     const num = Math.max(MIN_TEAMS, Math.min(MAX_TEAMS, n));
     const teams = this.makeTeams(num, this.state.teams);
+    const def = this.defaultPicks(num);
     const safePicks = Array.from(
       { length: num },
-      (_, i) => this.state.safePicks[i] ?? i % this.bank.length
+      (_, i) => this.state.safePicks[i] ?? def[i]
     );
     this._set({ numTeams: num, teams, safePicks });
   };
@@ -161,13 +172,14 @@ export default class GameController {
   };
 
   startGame = () => {
-    const unique = [...new Set(this.state.safePicks)];
-    const pool = [...unique];
-    const others = this.bank
-      .map((_, i) => i)
+    const nonEmpty = this.nonEmptyCatIndices();
+    if (!nonEmpty.length) return; // no questions loaded yet — cannot start
+    const unique = [...new Set(this.state.safePicks)].filter((i) => nonEmpty.includes(i));
+    const pool = unique.length ? [...unique] : [nonEmpty[0]];
+    const others = nonEmpty
       .filter((i) => !pool.includes(i))
       .sort(() => Math.random() - 0.5);
-    const target = Math.min(this.bank.length, Math.max(unique.length + 2, 4));
+    const target = Math.min(nonEmpty.length, Math.max(unique.length + 2, 4));
     while (pool.length < target && others.length) pool.push(others.shift());
     this._set({
       status: 'playing',
@@ -220,7 +232,8 @@ export default class GameController {
     this.clearScheduled();
     const pool = this.state.sessionCats.length
       ? this.state.sessionCats
-      : this.bank.map((_, i) => i);
+      : this.nonEmptyCatIndices();
+    if (!pool.length) return;
     const finalCat = pool[Math.floor(Math.random() * pool.length)];
     const cat = this.bank[finalCat];
     const qi = Math.floor(Math.random() * Math.max(1, cat.questions.length));

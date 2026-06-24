@@ -116,6 +116,7 @@ export default function Admin() {
 
 /* ----------------------------- SETUP ----------------------------- */
 function SetupView({ ctrl, s, bank, wide }) {
+  const readyCount = bank.filter((c) => c.questions.length > 0).length;
   return (
     <div style={{ height: '100%', display: 'grid', gridTemplateColumns: wide ? '1fr 320px' : '1fr', gap: 14, padding: 14, overflow: 'hidden' }}>
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto', gap: 14 }}>
@@ -148,9 +149,16 @@ function SetupView({ ctrl, s, bank, wide }) {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                   {bank.map((c, ci) => {
                     const sel = s.safePicks[i] === ci;
+                    const empty = c.questions.length === 0;
                     return (
-                      <button key={ci} onClick={() => ctrl.setSafe(i, ci)} style={{ padding: '7px 14px', borderRadius: 100, cursor: 'pointer', fontFamily: "'Tajawal'", fontWeight: 700, fontSize: 13, border: sel ? '1px solid rgba(245,200,75,.6)' : '1px solid rgba(255,255,255,.1)', background: sel ? 'rgba(245,200,75,.16)' : C.inputBg, color: sel ? C.goldSoft : C.mute3 }}>
-                        {c.cat}
+                      <button
+                        key={ci}
+                        onClick={() => !empty && ctrl.setSafe(i, ci)}
+                        disabled={empty}
+                        title={empty ? 'لا توجد أسئلة بعد' : `${toAr(c.questions.length)} سؤال`}
+                        style={{ padding: '7px 14px', borderRadius: 100, cursor: empty ? 'not-allowed' : 'pointer', fontFamily: "'Tajawal'", fontWeight: 700, fontSize: 13, border: sel ? '1px solid rgba(245,200,75,.6)' : '1px solid rgba(255,255,255,.1)', background: sel ? 'rgba(245,200,75,.16)' : C.inputBg, color: empty ? '#544f44' : sel ? C.goldSoft : C.mute3, opacity: empty ? 0.65 : 1 }}
+                      >
+                        {c.cat}{empty ? ' · قريباً' : ''}
                       </button>
                     );
                   })}
@@ -160,24 +168,33 @@ function SetupView({ ctrl, s, bank, wide }) {
           </div>
         </div>
 
-        <button onClick={ctrl.startGame} style={{ flex: 'none', padding: 18, borderRadius: 14, border: 'none', background: GOLD_GRAD, color: '#2a2008', fontFamily: "'Cairo'", fontWeight: 900, fontSize: 20, cursor: 'pointer', boxShadow: '0 10px 30px rgba(245,200,75,.32)' }}>▶ بدء اللعبة</button>
+        <button onClick={ctrl.startGame} disabled={readyCount === 0} style={{ flex: 'none', padding: 18, borderRadius: 14, border: 'none', background: readyCount === 0 ? '#2a2a32' : GOLD_GRAD, color: readyCount === 0 ? '#6b6557' : '#2a2008', fontFamily: "'Cairo'", fontWeight: 900, fontSize: 20, cursor: readyCount === 0 ? 'not-allowed' : 'pointer', boxShadow: readyCount === 0 ? 'none' : '0 10px 30px rgba(245,200,75,.32)' }}>▶ بدء اللعبة</button>
       </div>
 
       {/* bank browser */}
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: C.panel, border: '1px solid rgba(255,255,255,.07)', borderRadius: 14, overflow: 'hidden' }}>
         <div style={{ flex: 'none', padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
           <div style={{ fontFamily: "'Cairo'", fontWeight: 700, fontSize: 15, color: C.cream }}>بنك الأسئلة</div>
-          <div style={{ fontSize: 12, color: C.mute, marginTop: 2 }}>{toAr(bank.length)} فئات · للاطّلاع</div>
+          <div style={{ fontSize: 12, color: C.mute, marginTop: 2 }}>{toAr(bank.length)} فئات معتمدة · {toAr(readyCount)} جاهزة</div>
         </div>
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 10 }}>
           {bank.map((c, ci) => (
             <div key={ci} style={{ marginBottom: 14 }}>
-              <div style={{ fontFamily: "'Cairo'", fontWeight: 700, fontSize: 13, color: C.goldSoft, padding: '4px 8px' }}>{c.cat}</div>
-              {c.questions.map((q, qi) => (
-                <div key={qi} style={{ padding: '9px 12px', marginTop: 5, borderRadius: 9, background: C.panel2, border: '1px solid rgba(255,255,255,.06)', fontSize: 12.5, color: C.mute5, lineHeight: 1.4 }}>
-                  {q.q} <span style={{ color: C.mute2 }}>· {toAr(q.ans.length)} إجابة</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px' }}>
+                <span style={{ fontFamily: "'Cairo'", fontWeight: 700, fontSize: 13, color: c.questions.length ? C.goldSoft : '#6b6557' }}>{c.cat}</span>
+                <span style={{ fontSize: 11, color: C.mute2, fontWeight: 700 }}>{c.questions.length ? `${toAr(c.questions.length)} سؤال` : 'قريباً'}</span>
+              </div>
+              {c.questions.length === 0 ? (
+                <div style={{ padding: '9px 12px', marginTop: 5, borderRadius: 9, background: 'rgba(255,255,255,.02)', border: '1px dashed rgba(255,255,255,.08)', fontSize: 12, color: '#6b6557', lineHeight: 1.4 }}>
+                  لا توجد أسئلة بعد — تُضاف لاحقًا
                 </div>
-              ))}
+              ) : (
+                c.questions.map((q, qi) => (
+                  <div key={qi} style={{ padding: '9px 12px', marginTop: 5, borderRadius: 9, background: C.panel2, border: '1px solid rgba(255,255,255,.06)', fontSize: 12.5, color: C.mute5, lineHeight: 1.4 }}>
+                    {q.q} <span style={{ color: C.mute2 }}>· {toAr(q.ans.length)} إجابة</span>
+                  </div>
+                ))
+              )}
             </div>
           ))}
         </div>
