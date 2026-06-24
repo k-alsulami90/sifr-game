@@ -242,10 +242,10 @@ export default function Display() {
 
   return (
     <Shell muted={muted} setMuted={setMuted} code={code}>
-      <div style={{ position: 'absolute', inset: 0, background: DISPLAY_BG, overflow: 'hidden' }}>
-        {/* STANDBY */}
+      <div style={{ position: 'absolute', inset: 0, background: DISPLAY_BG, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* STANDBY — full screen, no scoreboard */}
         {dStandby && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={brandTitle('min(22vw,300px)')}>صِفر</div>
               <div style={{ marginTop: 18, fontSize: 'clamp(20px,2.4vw,34px)', fontWeight: 700, color: C.cream3 }}>
@@ -265,50 +265,62 @@ export default function Display() {
           </div>
         )}
 
+        {/* scoreboard strip — a non-shrinking flex row at the top, ALWAYS visible
+            during playing / elimination / winner. As a real flex item it pushes
+            the stage down instead of overlapping it, no matter how many teams. */}
+        {!dStandby && (
+          <div style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: 'clamp(10px,1.4vh,18px) clamp(20px,3vw,48px)', borderBottom: '1px solid rgba(255,255,255,.08)', background: 'rgba(10,10,15,.9)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 'none' }}>
+              <span style={{ fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(15px,1.7vw,24px)', color: C.gold }}>
+                {dWinner ? 'النتيجة النهائية' : `الجولة ${toAr(room.currentRound)}`}
+              </span>
+              {!dWinner && (
+                <span style={{ color: C.mute2, fontSize: 'clamp(11px,1.1vw,15px)', fontWeight: 700 }}>
+                  الدور {toAr(room.currentPass)} من ٢
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 'clamp(7px,.9vw,14px)', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {teams.map((t) => {
+                const elim = eliminated.includes(t.id) || t.id === room.eliminatedThisRound;
+                const isWinnerTeam = dWinner && t.id === room.winner;
+                const isTurn = !inElim && !dWinner && t.id === answering && (showQuestion || showCountdown);
+                return (
+                  <div
+                    key={t.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      padding: 'clamp(6px,.9vh,10px) clamp(11px,1.3vw,16px)',
+                      borderRadius: 100,
+                      border: isWinnerTeam ? '1px solid rgba(245,200,75,.7)' : isTurn ? '1px solid rgba(245,200,75,.55)' : '1px solid rgba(255,255,255,.08)',
+                      background: isWinnerTeam ? 'rgba(245,200,75,.2)' : isTurn ? 'rgba(245,200,75,.14)' : elim ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.05)',
+                      opacity: elim && !isWinnerTeam ? 0.55 : 1,
+                    }}
+                  >
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: t.dot, flex: 'none' }} />
+                    <span style={{ fontFamily: "'Cairo'", fontWeight: 700, fontSize: 'clamp(13px,1.3vw,18px)', color: elim && !isWinnerTeam ? '#5a5650' : C.cream3, textDecoration: elim && !isWinnerTeam ? 'line-through' : 'none' }}>
+                      {t.name}
+                    </span>
+                    <span style={{ fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(15px,1.5vw,22px)', color: elim && !isWinnerTeam ? '#5a5650' : isWinnerTeam ? C.gold : C.goldSoft }}>
+                      {toAr(cumTotal(log, t.id))}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* stage — fills the remaining height below the scoreboard. Each phase
+            renders inside this single box, so nothing can cover the scoreboard. */}
+        {!dStandby && (
+          <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+
         {/* PLAYING */}
         {dPlaying && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
-            {/* scoreboard strip */}
-            <div style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: 'clamp(12px,1.6vh,20px) clamp(24px,3vw,52px)', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 'none' }}>
-                <span style={{ fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(16px,1.8vw,26px)', color: C.gold }}>
-                  الجولة {toAr(room.currentRound)}
-                </span>
-                <span style={{ color: C.mute2, fontSize: 'clamp(12px,1.2vw,16px)', fontWeight: 700 }}>
-                  الدور {toAr(room.currentPass)} من ٢
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 'clamp(8px,1vw,16px)', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                {teams.map((t) => {
-                  const elim = eliminated.includes(t.id);
-                  const isTurn = !inElim && t.id === answering && (showQuestion || showCountdown);
-                  return (
-                    <div
-                      key={t.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 9,
-                        padding: 'clamp(7px,1vh,11px) clamp(12px,1.4vw,18px)',
-                        borderRadius: 100,
-                        border: isTurn ? '1px solid rgba(245,200,75,.55)' : '1px solid rgba(255,255,255,.08)',
-                        background: isTurn ? 'rgba(245,200,75,.14)' : elim ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.05)',
-                        opacity: elim ? 0.55 : 1,
-                      }}
-                    >
-                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: t.dot, flex: 'none' }} />
-                      <span style={{ fontFamily: "'Cairo'", fontWeight: 700, fontSize: 'clamp(13px,1.3vw,18px)', color: elim ? '#5a5650' : C.cream3, textDecoration: elim ? 'line-through' : 'none' }}>
-                        {t.name}
-                      </span>
-                      <span style={{ fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(15px,1.5vw,22px)', color: elim ? '#5a5650' : C.goldSoft }}>
-                        {toAr(cumTotal(log, t.id))}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* main stage */}
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch', padding: 'clamp(16px,2.4vh,34px) clamp(28px,4vw,64px)' }}>
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingLeft: 'clamp(20px,3vw,48px)' }}>
@@ -432,7 +444,7 @@ export default function Display() {
 
         {/* ELIMINATION */}
         {dElim && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '5vh 6vw', background: 'radial-gradient(ellipse 70% 60% at 50% 45%,rgba(255,90,90,.12),transparent 65%)' }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '5vh 6vw', overflowY: 'auto', background: 'radial-gradient(ellipse 70% 60% at 50% 45%,rgba(255,90,90,.12),transparent 65%)' }}>
             {room.eliminatedThisRound == null && (room.tieCandidates || []).length > 0 ? (
               <div style={{ textAlign: 'center', animation: 'elimRise .6s cubic-bezier(.2,.9,.3,1) both' }}>
                 <div style={{ fontSize: 'clamp(18px,2vw,30px)', fontWeight: 700, color: C.goldSoft, letterSpacing: 2 }}>تعادل في المركز الأخير</div>
@@ -469,13 +481,16 @@ export default function Display() {
 
         {/* WINNER */}
         {dWinner && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4vh 6vw', background: 'radial-gradient(ellipse 70% 60% at 50% 38%,rgba(245,200,75,.18),transparent 65%)' }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4vh 6vw', overflowY: 'auto', background: 'radial-gradient(ellipse 70% 60% at 50% 38%,rgba(245,200,75,.18),transparent 65%)' }}>
             <Confetti show count={48} />
             <div style={{ position: 'relative', textAlign: 'center', animation: 'flareIn .7s cubic-bezier(.2,1.2,.4,1) both' }}>
               <div style={{ fontSize: 'clamp(18px,2vw,28px)', fontWeight: 700, color: C.goldSoft, letterSpacing: 2 }}>آخر فريق صامد — البطل</div>
               <div style={{ ...brandTitle('min(15vw,190px)'), margin: '12px 0', animation: 'glowBreath 3s infinite' }}>{teamName(room.winner)}</div>
               <div style={{ fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(20px,2vw,32px)', color: C.cream2 }}>صمد حتى النهاية بأندر الإجابات</div>
             </div>
+          </div>
+        )}
+
           </div>
         )}
       </div>
