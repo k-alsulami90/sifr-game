@@ -1,24 +1,26 @@
-// 100-segment lightboard tower for the Display screen.
-// Cells are laid out 5 across × 20 down; value v = (19 - row) * 5 + col, so the
-// board fills from the bottom up. Cells with v < count stay lit.
+// 100-row lightboard tower for the Display screen — Pointless-style.
+// A vertical stack of 100 thin horizontal bars. Display index i (0 = top) maps
+// to value v = 99 - i, so the board fills from the BOTTOM up and drains from the
+// TOP down as `count` falls (100 → target), exactly like the show's board.
 
-function dotStyle(state) {
+function rowStyle(state) {
   const base = {
+    flex: 1,
+    minHeight: 0,
     width: '100%',
-    aspectRatio: '1',
-    borderRadius: '50%',
-    transition: 'background .1s linear, box-shadow .1s linear, opacity .1s',
+    borderRadius: '3px',
+    transition: 'background .09s linear, box-shadow .09s linear, opacity .09s',
   };
   if (state === 'lit')
     return {
       ...base,
-      background: 'radial-gradient(circle at 35% 30%,#FFF6D8,#F5C84B 55%,#C9962A)',
-      boxShadow: '0 0 9px 1px rgba(245,200,75,.7)',
+      background: 'linear-gradient(90deg,#C9962A,#F5C84B 45%,#FFF6D8 50%,#F5C84B 55%,#C9962A)',
+      boxShadow: '0 0 8px 1px rgba(245,200,75,.65)',
     };
   if (state === 'flare')
     return {
       ...base,
-      background: 'radial-gradient(circle at 35% 30%,#FFFFFF,#FFE49A 50%,#F5C84B)',
+      background: 'linear-gradient(90deg,#F5C84B,#FFFFFF 50%,#F5C84B)',
       boxShadow: '0 0 16px 3px rgba(255,214,96,.95)',
     };
   return {
@@ -30,16 +32,14 @@ function dotStyle(state) {
 }
 
 export default function Lightboard({ count = 100, mode = 'full', flare = false }) {
-  const cells = [];
-  for (let r = 0; r < 20; r++) {
-    for (let col = 0; col < 5; col++) {
-      const v = (19 - r) * 5 + col;
-      let st;
-      if (mode === 'full') st = 'lit';
-      else if (flare) st = 'flare';
-      else st = v < count ? 'lit' : 'off';
-      cells.push(<div key={`c${r}_${col}`} style={dotStyle(st)} />);
-    }
+  const rows = [];
+  for (let i = 0; i < 100; i++) {
+    const v = 99 - i; // top row = 99, bottom row = 0
+    let st;
+    if (mode === 'full') st = 'lit';
+    else if (flare) st = 'flare';
+    else st = v < count ? 'lit' : 'off';
+    rows.push(<div key={`r${i}`} style={rowStyle(st)} />);
   }
   return (
     <div
@@ -67,23 +67,22 @@ export default function Lightboard({ count = 100, mode = 'full', flare = false }
       <div
         style={{
           position: 'relative',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5,1fr)',
-          gap: 'clamp(5px,.7vw,9px)',
-          width: 'clamp(140px,14vw,210px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'clamp(1px,.18vh,3px)',
+          width: 'clamp(120px,12vw,190px)',
           flex: 1,
           minHeight: 0,
           maxHeight: '760px',
-          alignContent: 'stretch',
-          padding: 'clamp(10px,1.2vw,16px)',
+          padding: 'clamp(8px,1vw,14px)',
           background:
             'linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01))',
           border: '1px solid rgba(245,200,75,.18)',
-          borderRadius: '20px',
+          borderRadius: '16px',
           boxShadow: 'inset 0 0 60px rgba(0,0,0,.6)',
         }}
       >
-        {cells}
+        {rows}
       </div>
       <div
         style={{
