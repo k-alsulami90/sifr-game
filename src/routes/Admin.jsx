@@ -28,6 +28,8 @@ export default function Admin() {
   const [snap, setSnap] = useState(null);
   const creatingRef = useRef(false);
   const wide = useIsWide();
+  const [confirmReset, setConfirmReset] = useState(false);
+  const resetTimer = useRef(null);
 
   // load question bank
   useEffect(() => {
@@ -94,7 +96,22 @@ export default function Admin() {
           <a href={code ? `${import.meta.env.BASE_URL}display?room=${code}` : '#'} target="_blank" rel="noreferrer" style={{ height: 32, display: 'inline-flex', alignItems: 'center', padding: '0 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: C.panel2, color: C.mute6, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
             📺 العرض
           </a>
-          <button onClick={ctrl.onReset} style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: C.panel2, color: C.mute6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>إعادة</button>
+          <button
+            onClick={() => {
+              if (confirmReset) {
+                if (resetTimer.current) clearTimeout(resetTimer.current);
+                setConfirmReset(false);
+                ctrl.onReset();
+              } else {
+                setConfirmReset(true);
+                resetTimer.current = setTimeout(() => setConfirmReset(false), 4000);
+              }
+            }}
+            title={confirmReset ? 'اضغط للتأكيد — ستُمسح الجلسة' : 'إعادة الجلسة من البداية'}
+            style={{ height: 32, padding: '0 12px', borderRadius: 8, border: confirmReset ? '1px solid rgba(255,90,90,.6)' : '1px solid rgba(255,90,90,.25)', background: confirmReset ? 'rgba(255,90,90,.18)' : 'rgba(255,90,90,.08)', color: C.danger3, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+          >
+            {confirmReset ? 'متأكد؟ إعادة' : '↺ إعادة'}
+          </button>
         </div>
       </div>
 
@@ -138,29 +155,28 @@ function SetupView({ ctrl, s, bank }) {
       <div style={card()}>
         <div style={{ fontFamily: "'Cairo'", fontWeight: 700, fontSize: 15, color: C.cream, marginBottom: 4 }}>الفرق وفئاتها المضمونة</div>
         <div style={{ fontSize: 12, color: C.mute, marginBottom: 14 }}>كل فريق يختار فئة واحدة تظهر حتمًا في الجلسة. الباقي يُسحب عشوائيًا.</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {s.teams.map((t, i) => (
-            <div key={t.id} style={{ background: C.panel2, border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, padding: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 11 }}>
-                <span style={{ width: 14, height: 14, borderRadius: '50%', background: t.dot, flex: 'none' }} />
-                <input value={t.name} onChange={(e) => ctrl.setName(t.id, e.target.value)} style={{ flex: 1, background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,.12)', color: C.cream2, fontFamily: "'Cairo'", fontWeight: 700, fontSize: 16, padding: '4px 2px', outline: 'none' }} />
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                {bank.map((c, ci) => {
-                  const sel = s.safePicks[i] === ci;
-                  const empty = c.questions.length === 0;
-                  return (
-                    <button
-                      key={ci}
-                      onClick={() => !empty && ctrl.setSafe(i, ci)}
-                      disabled={empty}
-                      title={empty ? 'لا توجد أسئلة بعد' : `${toAr(c.questions.length)} سؤال`}
-                      style={{ padding: '7px 14px', borderRadius: 100, cursor: empty ? 'not-allowed' : 'pointer', fontFamily: "'Tajawal'", fontWeight: 700, fontSize: 13, border: sel ? '1px solid rgba(245,200,75,.6)' : '1px solid rgba(255,255,255,.1)', background: sel ? 'rgba(245,200,75,.16)' : C.inputBg, color: empty ? '#544f44' : sel ? C.goldSoft : C.mute3, opacity: empty ? 0.65 : 1 }}
-                    >
-                      {c.cat}{empty ? ' · قريباً' : ''}
-                    </button>
-                  );
-                })}
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.panel2, border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, padding: '10px 14px' }}>
+              <span style={{ width: 14, height: 14, borderRadius: '50%', background: t.dot, flex: 'none' }} />
+              <input value={t.name} onChange={(e) => ctrl.setName(t.id, e.target.value)} placeholder="ادخل اسم الفريق" style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,.12)', color: C.cream2, fontFamily: "'Cairo'", fontWeight: 700, fontSize: 16, padding: '4px 2px', outline: 'none' }} />
+              <div style={{ position: 'relative', flex: 'none' }}>
+                <select
+                  value={s.safePicks[i]}
+                  onChange={(e) => ctrl.setSafe(i, Number(e.target.value))}
+                  title="الفئة المضمونة لهذا الفريق"
+                  style={{ appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', background: C.inputBg, color: C.goldSoft, border: '1px solid rgba(245,200,75,.4)', borderRadius: 100, padding: '8px 14px 8px 30px', fontFamily: "'Tajawal'", fontWeight: 700, fontSize: 13, cursor: 'pointer', outline: 'none', maxWidth: 180, textOverflow: 'ellipsis' }}
+                >
+                  {bank.map((c, ci) => {
+                    const empty = c.questions.length === 0;
+                    return (
+                      <option key={ci} value={ci} disabled={empty} style={{ background: C.panel, color: empty ? '#6b6557' : C.cream2 }}>
+                        {c.cat}{empty ? ' · قريباً' : ` · ${toAr(c.questions.length)}`}
+                      </option>
+                    );
+                  })}
+                </select>
+                <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: C.goldSoft, fontSize: 10 }}>▾</span>
               </div>
             </div>
           ))}
@@ -200,6 +216,10 @@ function InGameView({ ctrl, s, wide }) {
     lr.outcome === 'wrong' ? 'إجابة خاطئة' : lr.outcome === 'pointless' ? 'صِفر — نادرة!' : 'نُدرة ' + toAr(s.targetScore ?? 0);
   const continueLabel =
     s.answeringPos + 1 < s.turnOrder.length ? 'الفريق التالي ←' : s.currentPass === 1 ? 'الدور الثاني ←' : 'نتيجة الجولة ←';
+
+  // reveal needs an answer or an explicit score; otherwise use the صفر/خطأ buttons
+  const canReveal = (s.entryAnswer || '').trim() !== '' || String(s.entryScore ?? '').trim() !== '';
+  const revealIfReady = () => { if (canReveal) ctrl.onReveal(); };
 
   const sbOrder = s.teams.map((t) => t.id).sort((a, b) => cumTotal(s.log, a) - cumTotal(s.log, b));
 
@@ -241,7 +261,10 @@ function InGameView({ ctrl, s, wide }) {
               <div style={{ fontFamily: "'Cairo'", fontWeight: 900, fontSize: 18, color: C.cream2 }}>{teamName(lr.teamId)} · {revealResultText}</div>
               <div style={{ fontSize: 13, color: C.mute }}>ظهرت النتيجة على الشاشة</div>
             </div>
-            <button onClick={ctrl.onContinue} style={{ flex: 'none', padding: '13px 26px', borderRadius: 11, border: 'none', background: GOLD_GRAD, color: '#2a2008', fontFamily: "'Cairo'", fontWeight: 900, fontSize: 16, cursor: 'pointer' }}>{continueLabel}</button>
+            <div style={{ flex: 'none', display: 'flex', gap: 8 }}>
+              <button onClick={ctrl.editLastReveal} title="تراجع عن آخر كشف وأعد الإدخال" style={{ minHeight: 44, padding: '13px 18px', borderRadius: 11, border: '1px solid rgba(255,255,255,.15)', background: C.panel2, color: C.mute6, fontFamily: "'Cairo'", fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>↩ تعديل</button>
+              <button onClick={ctrl.onContinue} style={{ minHeight: 44, padding: '13px 26px', borderRadius: 11, border: 'none', background: GOLD_GRAD, color: '#2a2008', fontFamily: "'Cairo'", fontWeight: 900, fontSize: 16, cursor: 'pointer' }}>{continueLabel}</button>
+            </div>
           </div>
         )}
 
@@ -250,7 +273,7 @@ function InGameView({ ctrl, s, wide }) {
           <div style={{ flex: 'none', background: 'linear-gradient(180deg,rgba(245,200,75,.07),rgba(245,200,75,.02))', border: '1px solid rgba(245,200,75,.28)', borderRadius: 14, padding: 18 }}>
             <div style={{ fontFamily: "'Cairo'", fontWeight: 700, fontSize: 15, color: C.goldSoft, marginBottom: 2 }}>دور: {teamName(answering)}</div>
             <div style={{ fontSize: 12, color: C.mute3, marginBottom: 12 }}>ابحث عن الإجابة المنطوقة أو اضبط النقاط يدويًا</div>
-            <input value={s.entryAnswer} onChange={(e) => ctrl.setEntryAnswer(e.target.value)} placeholder="اكتب للبحث في بنك الإجابات…" style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: C.inputBg, color: C.cream, fontSize: 15, marginBottom: 10 }} />
+            <input value={s.entryAnswer} onChange={(e) => ctrl.setEntryAnswer(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && revealIfReady()} placeholder="اكتب للبحث في بنك الإجابات…" style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: C.inputBg, color: C.cream, fontSize: 15, marginBottom: 10 }} />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 14, minHeight: 8 }}>
               {suggestions.map((a, i) => (
                 <button key={i} onClick={() => ctrl.pickSuggestion(a.text, a.score)} title={a.note} style={{ padding: '8px 13px', borderRadius: 100, cursor: 'pointer', fontFamily: "'Tajawal'", fontWeight: 700, fontSize: 13, border: '1px solid rgba(255,255,255,.12)', background: a.score === 0 ? 'rgba(245,200,75,.14)' : C.panel2, color: a.score === 0 ? C.goldSoft : C.mute6 }}>
@@ -261,9 +284,9 @@ function InGameView({ ctrl, s, wide }) {
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
               <div style={{ flex: 'none', width: 130 }}>
                 <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginBottom: 5 }}>النقاط (يدوي ٠–١٠٠)</div>
-                <input value={s.entryScore} onChange={(e) => ctrl.setEntryScore(e.target.value)} inputMode="numeric" placeholder="٠٠" style={{ width: '100%', padding: 11, borderRadius: 10, border: '1px solid rgba(245,200,75,.3)', background: C.inputBg, color: C.gold, fontFamily: "'Cairo'", fontWeight: 900, fontSize: 22, textAlign: 'center' }} />
+                <input value={s.entryScore} onChange={(e) => ctrl.setEntryScore(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && revealIfReady()} inputMode="numeric" placeholder="٠٠" style={{ width: '100%', padding: 11, borderRadius: 10, border: '1px solid rgba(245,200,75,.3)', background: C.inputBg, color: C.gold, fontFamily: "'Cairo'", fontWeight: 900, fontSize: 22, textAlign: 'center' }} />
               </div>
-              <button onClick={ctrl.onReveal} style={{ flex: 1, padding: 15, borderRadius: 12, border: 'none', background: GOLD_GRAD, color: '#2a2008', fontFamily: "'Cairo'", fontWeight: 900, fontSize: 17, cursor: 'pointer', boxShadow: '0 8px 24px rgba(245,200,75,.3)' }}>▶ كشف النتيجة</button>
+              <button onClick={revealIfReady} disabled={!canReveal} title={canReveal ? '' : 'أدخل إجابة أو نقاطًا أولاً (أو استخدم صفر/خطأ)'} style={{ flex: 1, minHeight: 44, padding: 15, borderRadius: 12, border: 'none', background: canReveal ? GOLD_GRAD : '#2a2a32', color: canReveal ? '#2a2008' : '#6b6557', fontFamily: "'Cairo'", fontWeight: 900, fontSize: 17, cursor: canReveal ? 'pointer' : 'not-allowed', boxShadow: canReveal ? '0 8px 24px rgba(245,200,75,.3)' : 'none' }}>▶ كشف النتيجة</button>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
               <button onClick={ctrl.quickPointless} style={{ flex: 1, padding: 13, borderRadius: 11, border: '1px solid rgba(245,200,75,.45)', background: 'rgba(245,200,75,.14)', color: C.goldSoft, fontFamily: "'Cairo'", fontWeight: 900, fontSize: 14, cursor: 'pointer' }}>صفر! — إجابة نادرة غير موجودة</button>
@@ -427,7 +450,7 @@ function card(extra = {}) {
 }
 const stepBtn = { width: 38, height: 38, borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: C.panel2, color: C.gold, fontSize: 22, fontWeight: 900, cursor: 'pointer' };
 const ghostBtn = { flex: 1, padding: 11, borderRadius: 9, border: '1px solid rgba(255,255,255,.12)', background: C.panel2, color: C.mute6, fontFamily: "'Cairo'", fontWeight: 700, fontSize: 14, cursor: 'pointer' };
-const miniBtn = { width: 26, height: 26, borderRadius: 7, border: '1px solid rgba(255,255,255,.12)', background: C.inputBg, color: C.mute6, fontSize: 16, fontWeight: 900, cursor: 'pointer', lineHeight: 1 };
+const miniBtn = { width: 36, height: 36, borderRadius: 9, border: '1px solid rgba(255,255,255,.12)', background: C.inputBg, color: C.mute6, fontSize: 18, fontWeight: 900, cursor: 'pointer', lineHeight: 1 };
 
 function Center({ title, body }) {
   return (

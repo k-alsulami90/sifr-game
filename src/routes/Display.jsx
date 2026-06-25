@@ -147,6 +147,30 @@ export default function Display() {
     lastTimer.current = t;
   }, [room?.timer, room?.timerRunning]);
 
+  // remember whether we ever connected — lets us tell a dropped/ended session
+  // apart from a wrong room code in the gate below.
+  const everConnected = useRef(false);
+  useEffect(() => {
+    if (exists) everConnected.current = true;
+  }, [exists]);
+
+  // keyboard shortcuts on the display: F = fullscreen, M = mute
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+      const k = (e.key || '').toLowerCase();
+      if (k === 'f') {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+        else document.exitFullscreen?.();
+      } else if (k === 'm') {
+        sound.ensure();
+        setMuted((m) => !m);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setMuted]);
+
   // ---------- gates ----------
   if (!firebaseReady) return <FullMsg title="إعداد ناقص" body="لم يتم ضبط Firebase — راجع README." />;
 
@@ -197,7 +221,13 @@ export default function Display() {
 
   if (loading) return <FullMsg title="جارٍ الاتصال…" body={`غرفة ${toAr(code)}`} />;
   if (!exists || !room)
-    return (
+    return everConnected.current ? (
+      <FullMsg
+        title="انقطع الاتصال بالغرفة"
+        body={`غرفة ${toAr(code)} لم تعد متاحة — قد يكون المُضيف أنهى الجلسة، أو انقطع الاتصال. سيُعاد الاتصال تلقائيًّا إن عادت الغرفة.`}
+        onBack={() => setParams({})}
+      />
+    ) : (
       <FullMsg
         title="لا توجد غرفة بهذا الرمز"
         body={`تأكد من الرمز ${toAr(code)} أو اطلب من المُضيف إنشاء جلسة.`}
@@ -236,7 +266,7 @@ export default function Display() {
 
   const ring = 339.3;
   const timer = room.timer ?? 0;
-  const ringOffset = ring * (1 - timer / 30);
+  const ringOffset = ring * (1 - timer / (room.timerMax || 30));
   const lr = room.lastReveal || {};
   const target = room.targetScore ?? lr.score ?? 0;
 
@@ -280,6 +310,13 @@ export default function Display() {
                 </span>
               )}
             </div>
+            {/* P1: persistent legend so any viewer grasps the inverted scoring rule */}
+            {dPlaying && (
+              <div style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, padding: 'clamp(5px,.7vh,8px) clamp(12px,1.4vw,18px)', borderRadius: 100, background: 'rgba(245,200,75,.10)', border: '1px solid rgba(245,200,75,.28)' }}>
+                <span style={{ color: C.gold, fontSize: 'clamp(13px,1.3vw,18px)', lineHeight: 1 }}>↓</span>
+                <span style={{ color: C.goldSoft, fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(12px,1.2vw,16px)' }}>الأقل = الأندر = الأفضل</span>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 'clamp(7px,.9vw,14px)', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {teams.map((t) => {
                 const elim = eliminated.includes(t.id) || t.id === room.eliminatedThisRound;
@@ -366,20 +403,38 @@ export default function Display() {
                           <div style={{ fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(28px,3vw,48px)', color: C.cream2 }}>{teamName(answering)}</div>
                         </div>
                       </div>
-                      {usedRound.length > 0 && (
-                        <div style={{ marginTop: 30, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                          <span style={{ color: C.mute4, fontSize: 'clamp(13px,1.2vw,16px)', fontWeight: 700 }}>الإجابات المستخدمة:</span>
-                          {usedRound.map((r, i) => {
-                            const lead = r.score === minS;
-                            return (
-                              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 100, fontFamily: "'Cairo'", fontWeight: 700, fontSize: 'clamp(14px,1.4vw,18px)', border: lead ? '1px solid rgba(245,200,75,.5)' : '1px solid rgba(255,255,255,.1)', background: lead ? 'rgba(245,200,75,.16)' : 'rgba(255,255,255,.04)', color: lead ? C.goldSoft : C.mute5 }}>
-                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: teamDotOf(r.teamId) }} />
-                                {r.answer} · {toAr(r.score)}
+                      {usedRound.length > 0 && (() => {
+                        // cap the strip so a long round can't crowd out the question:
+                        // keep the best (lowest) answer + the most recent, summarize the rest
+                        const MAX = 6;
+                        let shown = usedRound;
+                        let hidden = 0;
+                        if (usedRound.length > MAX) {
+                          const recent = usedRound.slice(-MAX);
+                          const leadEntry = usedRound.find((r) => r.score === minS);
+                          shown = leadEntry && !recent.includes(leadEntry) ? [leadEntry, ...recent.slice(1)] : recent;
+                          hidden = usedRound.length - shown.length;
+                        }
+                        return (
+                          <div style={{ marginTop: 30, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                            <span style={{ color: C.mute4, fontSize: 'clamp(13px,1.2vw,16px)', fontWeight: 700 }}>الإجابات المستخدمة:</span>
+                            {hidden > 0 && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '8px 14px', borderRadius: 100, fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(13px,1.3vw,17px)', border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)', color: C.mute4 }}>
+                                +{toAr(hidden)}
                               </span>
-                            );
-                          })}
-                        </div>
-                      )}
+                            )}
+                            {shown.map((r, i) => {
+                              const lead = r.score === minS;
+                              return (
+                                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 100, fontFamily: "'Cairo'", fontWeight: 700, fontSize: 'clamp(14px,1.4vw,18px)', border: lead ? '1px solid rgba(245,200,75,.5)' : '1px solid rgba(255,255,255,.1)', background: lead ? 'rgba(245,200,75,.16)' : 'rgba(255,255,255,.04)', color: lead ? C.goldSoft : C.mute5 }}>
+                                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: teamDotOf(r.teamId) }} />
+                                  {r.answer} · {toAr(r.score)}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </motion.div>
                   )}
 
@@ -399,7 +454,7 @@ export default function Display() {
                   {showReveal && (
                     <motion.div key="reveal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'relative' }}>
                       {isPointless && (
-                        <div style={{ animation: 'flareIn .6s cubic-bezier(.2,1.2,.4,1) both' }}>
+                        <div style={{ animation: 'flareIn .6s cubic-bezier(.16,1,.3,1) both' }}>
                           <div style={{ fontSize: 'clamp(18px,1.8vw,26px)', fontWeight: 700, color: C.goldSoft, letterSpacing: 1 }}>إجابة نادرة جدًّا!</div>
                           <div style={{ fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'min(38vh,400px)', lineHeight: 0.82, background: POINTLESS_GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', filter: 'drop-shadow(0 0 40px rgba(245,200,75,.7))' }}>صِفر!</div>
                           <div style={{ marginTop: 6, fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(24px,2.4vw,40px)', color: C.cream2 }}>
@@ -483,7 +538,7 @@ export default function Display() {
         {dWinner && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4vh 6vw', overflowY: 'auto', background: 'radial-gradient(ellipse 70% 60% at 50% 38%,rgba(245,200,75,.18),transparent 65%)' }}>
             <Confetti show count={48} />
-            <div style={{ position: 'relative', textAlign: 'center', animation: 'flareIn .7s cubic-bezier(.2,1.2,.4,1) both' }}>
+            <div style={{ position: 'relative', textAlign: 'center', animation: 'flareIn .7s cubic-bezier(.16,1,.3,1) both' }}>
               <div style={{ fontSize: 'clamp(18px,2vw,28px)', fontWeight: 700, color: C.goldSoft, letterSpacing: 2 }}>آخر فريق صامد — البطل</div>
               <div style={{ ...brandTitle('min(15vw,190px)'), margin: '12px 0', animation: 'glowBreath 3s infinite' }}>{teamName(room.winner)}</div>
               <div style={{ fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(20px,2vw,32px)', color: C.cream2 }}>صمد حتى النهاية بأندر الإجابات</div>

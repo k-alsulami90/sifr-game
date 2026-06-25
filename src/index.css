@@ -30,6 +30,12 @@ input {
   color: #7c7666;
 }
 
+/* keyboard focus visibility — box-shadow ring survives inline `outline: none` */
+:where(button, input, select, a, [tabindex]):focus-visible {
+  box-shadow: 0 0 0 2px rgba(245, 200, 75, 0.65);
+  border-radius: 8px;
+}
+
 ::-webkit-scrollbar {
   width: 9px;
   height: 9px;

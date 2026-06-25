@@ -71,11 +71,18 @@ export default class GameController {
   }
 
   makeTeams(n, prev = []) {
+    // Names start EMPTY so the setup field shows its "ادخل اسم الفريق"
+    // placeholder. Blank names are filled with a fallback at startGame().
     return Array.from({ length: n }, (_, i) => ({
       id: 't' + (i + 1),
-      name: (prev[i] && prev[i].name) || DEFAULT_TEAM_NAMES[i] || 'فريق ' + (i + 1),
+      name: prev[i] ? prev[i].name : '',
       dot: teamDot(i),
     }));
+  }
+
+  // a sensible non-empty display name for a team left blank in setup
+  fallbackName(i) {
+    return DEFAULT_TEAM_NAMES[i] || 'فريق ' + (i + 1);
   }
 
   // category indices that currently hold at least one question
@@ -181,8 +188,14 @@ export default class GameController {
       .sort(() => Math.random() - 0.5);
     const target = Math.min(nonEmpty.length, Math.max(unique.length + 2, 4));
     while (pool.length < target && others.length) pool.push(others.shift());
+    // fill any team left blank in setup with a fallback name before play
+    const teams = this.state.teams.map((t, i) => ({
+      ...t,
+      name: (t.name || '').trim() || this.fallbackName(i),
+    }));
     this._set({
       status: 'playing',
+      teams,
       sessionCats: pool,
       eliminated: [],
       currentRound: 1,
@@ -296,6 +309,30 @@ export default class GameController {
     this.revealWith(0, 'pointless', this.state.entryAnswer || 'إجابة نادرة غير مُدرجة');
 
   quickWrong = () => this.revealWith(0, 'wrong', '—');
+
+  // undo the most recent reveal and return to answering it (recover a misclick)
+  editLastReveal = () => {
+    this.clearScheduled();
+    if (this._interval) clearInterval(this._interval);
+    const log = this.state.log.slice();
+    for (let i = log.length - 1; i >= 0; i--) {
+      if (['scored', 'pointless', 'wrong'].includes(log[i].outcome)) {
+        log.splice(i, 1);
+        break;
+      }
+    }
+    this._set({
+      log,
+      turnPhase: 'question',
+      targetScore: null,
+      outcome: null,
+      lastReveal: null,
+      entryAnswer: '',
+      entryScore: '',
+      timer: TIMER_START,
+      timerRunning: false,
+    });
+  };
 
   onContinue = () => {
     const pos = this.state.answeringPos + 1;
@@ -458,6 +495,7 @@ export default class GameController {
       targetScore: s.targetScore,
       outcome: s.outcome,
       timer: s.timer,
+      timerMax: TIMER_START,
       timerRunning: s.timerRunning,
       eliminatedThisRound: s.eliminatedThisRound,
       tieCandidates: s.tieCandidates,
