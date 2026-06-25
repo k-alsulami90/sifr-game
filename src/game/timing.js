@@ -27,8 +27,8 @@ export function spinPlan() {
 export function countdownPlan(target) {
   const t = Math.max(0, Math.min(100, target | 0));
   const span = Math.max(100 - t, 1);
-  const startDelay = 460;
-  const finishHold = 700;
+  const startDelay = 360;
+  const finishHold = 600;
   const frames = [];
   let delayBefore = startDelay;
   for (let c = 99; c >= t; c--) {
@@ -39,7 +39,8 @@ export function countdownPlan(target) {
       // distance from the target, drives the rising tick pitch
       fromTarget: c - t,
     });
-    delayBefore = 26 + Math.pow(1 - progress, 2.4) * 540;
+    // brisk, near-steady ticks with only a slight landing ease (like the show)
+    delayBefore = 22 + Math.pow(1 - progress, 1.7) * 150;
   }
   const trailing = delayBefore; // pause after hitting the target
   const total =
