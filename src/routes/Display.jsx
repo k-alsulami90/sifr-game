@@ -10,6 +10,19 @@ import { spinPlan, countdownPlan } from '../game/timing.js';
 import { toAr, cumTotal } from '../game/scoring.js';
 import { TITLE_GRAD, POINTLESS_GRAD, DISPLAY_BG, C } from '../theme.js';
 
+// narrow viewport (phone) — used to keep the stage from overflowing on small screens
+function useIsNarrow(bp = 720) {
+  const [narrow, setNarrow] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < bp : false
+  );
+  useEffect(() => {
+    const f = () => setNarrow(window.innerWidth < bp);
+    window.addEventListener('resize', f);
+    return () => window.removeEventListener('resize', f);
+  }, [bp]);
+  return narrow;
+}
+
 export default function Display() {
   const [params, setParams] = useSearchParams();
   const code = params.get('room');
@@ -17,6 +30,7 @@ export default function Display() {
   const [muted, setMuted] = useState(false);
   const { room, exists, loading, error } = useRoomListener(code);
   const reduce = useReducedMotion();
+  const narrow = useIsNarrow();
 
   // local animation state driven by Firebase tokens
   const [spinCat, setSpinCat] = useState('');
@@ -469,6 +483,7 @@ export default function Display() {
                             {timer === 0 ? 'انتهى الوقت' : 'إجابة خاطئة'}
                           </div>
                           <div style={{ marginTop: 6, fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(24px,2.4vw,38px)', color: C.cream2 }}>{teamName(lr.teamId)}</div>
+                          <div style={{ marginTop: 8, fontFamily: "'Cairo'", fontWeight: 900, fontSize: 'clamp(18px,1.8vw,28px)', color: C.danger3 }}>+{toAr(100)} نقطة — الأسوأ</div>
                         </div>
                       )}
                       {isScored && (
@@ -485,12 +500,15 @@ export default function Display() {
                 </AnimatePresence>
               </div>
 
-              {/* lightboard tower */}
-              <Lightboard
-                count={count}
-                mode={showCountdown || showReveal ? 'live' : 'full'}
-                flare={showReveal && isPointless}
-              />
+              {/* lightboard tower — hidden on phones so it can't crowd the
+                  stage; the big center number carries the countdown there */}
+              {!narrow && (
+                <Lightboard
+                  count={count}
+                  mode={showCountdown || showReveal ? 'live' : 'full'}
+                  flare={showReveal && isPointless}
+                />
+              )}
             </div>
 
             <Confetti show={showReveal && isPointless} />

@@ -213,7 +213,7 @@ function InGameView({ ctrl, s, wide }) {
 
   const lr = s.lastReveal || {};
   const revealResultText =
-    lr.outcome === 'wrong' ? 'إجابة خاطئة' : lr.outcome === 'pointless' ? 'صِفر — نادرة!' : 'نُدرة ' + toAr(s.targetScore ?? 0);
+    lr.outcome === 'wrong' ? 'إجابة خاطئة · +' + toAr(100) : lr.outcome === 'pointless' ? 'صِفر — نادرة!' : 'نُدرة ' + toAr(s.targetScore ?? 0);
   const continueLabel =
     s.answeringPos + 1 < s.turnOrder.length ? 'الفريق التالي ←' : s.currentPass === 1 ? 'الدور الثاني ←' : 'نتيجة الجولة ←';
 
@@ -270,11 +270,13 @@ function InGameView({ ctrl, s, wide }) {
 
         {/* answer entry */}
         {showQuestion && (
-          <div style={{ flex: 'none', background: 'linear-gradient(180deg,rgba(245,200,75,.07),rgba(245,200,75,.02))', border: '1px solid rgba(245,200,75,.28)', borderRadius: 14, padding: 18 }}>
+          <div style={{ flex: 'none', background: 'linear-gradient(180deg,rgba(245,200,75,.07),rgba(245,200,75,.02))', border: '1px solid rgba(245,200,75,.28)', borderRadius: 14, padding: 'clamp(12px,3vw,18px)' }}>
             <div style={{ fontFamily: "'Cairo'", fontWeight: 700, fontSize: 15, color: C.goldSoft, marginBottom: 2 }}>دور: {teamName(answering)}</div>
             <div style={{ fontSize: 12, color: C.mute3, marginBottom: 12 }}>ابحث عن الإجابة المنطوقة أو اضبط النقاط يدويًا</div>
             <input value={s.entryAnswer} onChange={(e) => ctrl.setEntryAnswer(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && revealIfReady()} placeholder="اكتب للبحث في بنك الإجابات…" style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.12)', background: C.inputBg, color: C.cream, fontSize: 15, marginBottom: 10 }} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 14, minHeight: 8 }}>
+            {/* capped + scrollable so a long answer list never pushes the reveal
+                button off-screen / under the mobile keyboard */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 14, minHeight: 8, maxHeight: 'clamp(76px,16vh,200px)', overflowY: 'auto', alignContent: 'flex-start' }}>
               {suggestions.map((a, i) => (
                 <button key={i} onClick={() => ctrl.pickSuggestion(a.text, a.score)} title={a.note} style={{ padding: '8px 13px', borderRadius: 100, cursor: 'pointer', fontFamily: "'Tajawal'", fontWeight: 700, fontSize: 13, border: '1px solid rgba(255,255,255,.12)', background: a.score === 0 ? 'rgba(245,200,75,.14)' : C.panel2, color: a.score === 0 ? C.goldSoft : C.mute6 }}>
                   {a.text} · {toAr(a.score)}
@@ -295,7 +297,7 @@ function InGameView({ ctrl, s, wide }) {
             {usedAnswers.length > 0 && (
               <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.08)' }}>
                 <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginBottom: 7 }}>الإجابات المستخدمة في الجولة (لا تُعاد)</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 'clamp(64px,12vh,160px)', overflowY: 'auto', alignContent: 'flex-start' }}>
                   {usedAnswers.map((u, i) => (
                     <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 100, background: C.inputBg, border: '1px solid rgba(255,255,255,.08)', fontSize: 12, color: C.mute6 }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.teams.find((t) => t.id === u.teamId)?.dot || '#888' }} />

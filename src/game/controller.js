@@ -308,7 +308,9 @@ export default class GameController {
   quickPointless = () =>
     this.revealWith(0, 'pointless', this.state.entryAnswer || 'إجابة نادرة غير مُدرجة');
 
-  quickWrong = () => this.revealWith(0, 'wrong', '—');
+  // wrong / timeout is the WORST outcome — lower is better, so it takes the
+  // maximum penalty (100), pushing the team toward elimination.
+  quickWrong = () => this.revealWith(100, 'wrong', '—');
 
   // undo the most recent reveal and return to answering it (recover a misclick)
   editLastReveal = () => {
